@@ -18,32 +18,22 @@ class Associate:
     self.ADDR = ADDR
     self.SCORE = SCORE
     self.myAUTH = myAUTH
-    self.thAUTH = thAUTH
-    #Associate could have Database atribute, which would be found by using the getdatabase command which does not send auths
-    ##could have sanitze method which returns an instance with no sensitive data
-    
+    self.thAUTH = thAUTH    
   def AddDatabase(self,inputs):
     self.Database = inputs
+  ##more methods for associate may be useful: comparative operator, 
 
-
-class Database:##beware oop
-  #database could 
-  ##note the friend varname must change
-  ##unbound methods so Server, Client and Associate can access them, but use of instances useful for ...
-  ##i want to find a way of 
-
+class Database:
   def __sub__(self,other) :
     retlist = lst[:]
     for Ass1 in self.lst:
       for Ass2 in other.lst:
-        if Ass1.ADDR == Ass2.ADDR or Ass1.ID == Ass2.ID##lambda function better: and "or" or?
+        if Ass1.ADDR == Ass2.ADDR or Ass1.ID == Ass2.ID: ##and "or" or?
           retlist.remove(Ass1)
-    return Database(retlist)
-
-
-  def __init__(self):
-    self.lst = [] 
-
+    return Database(lst = retlist)
+  
+  def __init__(self,lst = []):
+    self.lst = lst
   
   def getAssociateByID(self,ID):## the getByID Commands could return instance of database.
     out = []
@@ -86,7 +76,7 @@ class Database:##beware oop
       string += ("{Ass.ID}/{Ass.ADDR}/{Ass.SCORE}")
     return string.encode("utf-8")
 
-  def __init__(lst = None):##expects list of associates
+  def __init__(self,lst = None):##expects list of associates
     if lst != None:
       self.lst = lst
     else:
@@ -94,6 +84,7 @@ class Database:##beware oop
 
 ##i think that the methods  of server should use Adresses,
 class Server:
+  ##could have a temp databases which gets cleared every several commands. temp databses stores the details of peers which have been invovled in comms with
   def __init__(self,ID,ADDR,database = Database()):
     self.ID = ID
     self.ADDR = ADDR
@@ -123,8 +114,6 @@ class Server:
     else:
       self.CONFIRM(packit,conn,False)
 
-
-
   def GETDATA(self,packit,conn):
     ID,auth = packit.split("/")
     conn.send("{self.Database.share}")
@@ -152,7 +141,7 @@ class Server:
     client.close()
     return res == validata
 
-  def REG(self,packit,conn):##scoring mechanism here would be good
+  def REG(self,packit,conn):##scoring mechanism
     CMD,DATA = packit.split(":")
     ID,thAUTH,ip,port= DATA.split("/")
     ADDR = (ip,int(port))
@@ -164,11 +153,12 @@ class Server:
     return self.CONFIRM(packit,conn,False)
 
   def VAL(self,packit,conn):
+    ##should do validation checks here
     CMD,DATA = packit.split(":")
     senderID,AUTH,validata = packit.split("/")##validation such as checking auth,id and other stuff
     conn.send(validata.encode("utf-8"))
     conn.close()
-    ##could do some validation checks here
+
   @property
   def commands(self):
     return {"REG":self.REG,
@@ -180,16 +170,16 @@ class Server:
               "CHANGEADDR":self.CHANGEADDR}
 
   def FINDID(self,packit,conn):
-  ##every step of the line back the packit can be validated, 
+  ##every step of the line back the packit should be validated, 
   #if a server reports the packit as malicous it could report it to all serers on the line and the client which sent it
   # if the line is being tested the reporters score won't suffer
+  ##future validations: every server along the line is inforemd of the pakit recieved by everyother server.
     CMD,Req,TGTID,History = packit.split(":")
     ReqID,ReqAUTH = Req.split(",")##can do validation chaeck here
     templst = History.split("/")
-    relayHistroy = Database.create(templst)
     Requestor = Associate(ID = ReqID,thAUTH = AUTH)
     try:
-      packit += str("/RESULT:" + str(self.Database.getAssociateByID(TGTID)[0].ADDR))
+      packit += str("TGTID:"+str(self.Database.getAssociateByID(TGTID)[0].ADDR))
       conn.send(packit)
     except KeyError:
       newDatabase = self.Database - relayHistroy
@@ -203,22 +193,16 @@ class Server:
           client.connect(NextAss.ADDR)
           client.send(packit)
           queryresponse = client.recv(2040)
+          restring = queryresponse.decode("utf-8")
           client.close()
-          if queryresponse is good:
-            conn.send(myqueryresponse)
-            conn.recv(2040)##recieving feedback from request(expected outcome, or malicous outcome)
+          if restring.count("TGTID") >= 1:
+            conn.send(queryresponse)
             break
         except IndexError:##if database exhausted
-        ##or another error such as one genreate through subtraction of databases
-          #also a confirmation packit to original initiator
-          #but with reg first so they know im not lying about my identity
-          ## this will prevent the findown score method, but in future when requests are prioritized by score, score will be derivable
-          conn.send(myresponsetorequestor)
-          self.client.REG(iinitiator)
-          self.inform initaor of results
+          #or another error such as one genreate through subtraction of databases
+          conn.send(queryresponse)
           break 
       conn.close()
-
 
 #why the method of finding ids is best:
 #gives more info for scores to be updated:
@@ -227,15 +211,9 @@ class Server:
 ##pro is less communication on network better network speed.
 ##so the algorythm is done on the client side instead of distributed across the network
 ##allowing the client to perform its own searching algorythm
-##i am sold on it now
-##that way is best
-## i might make a git repo 
-
-
-
-
-
-
+## con is that there is less incentive to have a high score, and that in the future, certain servers want to be 
+##quered by a smaller number of other servers, so going through proxies is a way for this to happen
+##both implemntations can exist side by side
 
 class Client:
   ##IF A NODE does not respond directly, the client should query them 
@@ -253,9 +231,6 @@ class Client:
     client.send(packit)
     res = client.recv(2040).decode("utf-8")
     return res
-
-##this way findid command can be used to estimate ones own score on the network::how fast the commmand comes back to you, by not appending your own address to the end of command
-##instead appending a pretendId and address in the history field. !!very useful
 
   def __init__(self,ID,ADDR,database = Database()):
     self.ID = ID
@@ -281,8 +256,8 @@ class Client:
     res = client.recv(2040).decode("utf-8")
     return res
 
-    ### response used to decide whether/how to update ID
   def GETDATA(self,Associate):
+    ### response used to decide whether/how to update ID
     packit = f"GETDATA:{self.ID}/{Associate.myAUTH}".encode("utf-8")
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(Associate.ADDR)
@@ -312,9 +287,11 @@ class Peer:
     self.client = Client(self.ID,self.ADDR,self.Database)
     self.server.client = self.client
     self.client.server = self.server
+    self.server.client.peer = self##allows peer methods and attributes to be acceced from server and client sub instances
+    self.client.server.peer = self#strange recursion?
+
+
 ## so client can use server methods and server can use client methods
-
-
 ##potentialfuture
 ##Differnt ID and AUTH pair used for every single Association
 ##so self.ID is used as defualt
@@ -323,8 +300,6 @@ class Peer:
 ##also accepting a "myID,theirID" argument allows a server to treat clients differently depending upon how they found you
 
 
-  ##reserveID, id reserved fdor 10secs,
-  ##then confirm
   def CHANGEID(self,ID):##needs more thought, much more thought
     if self.client.CHANGEID(ID):
       self.ID = ID
@@ -341,24 +316,20 @@ class Peer:
 
   def testAssociate(self, Associate):
     pass
-
-  def testAllAssociates(self, lst = self.Database):
+  def testAllAssociates(self, lst = Database):
     pass
-
-  def CHANGEIDFORALL(self,lst = self.Database):
+  def CHANGEIDFORALL(self,lst = Database):
     pass
-
   def estimateSCORE(self):
     pass
-
   def updateSCORE(self):
     ## closer to mistake, bigger score penalty!
     pass
 
 
-
 PORT = 5051
 ip = socket.gethostbyname(socket.gethostname())
+
 p0 = Peer("A0",(ip,5050))
 p1 = Peer("A1",(ip,5051))
 p2 = Peer("A2",(ip,5052))
@@ -371,6 +342,5 @@ p2.Database.append(p1.info)
 p0.start()
 p1.start()
 p2.start()
-
-print(p0.client.REG(p0.Database.getAssociateByID("A1")[0],"cabbage"))
+print(p0.client.REG(p0.Database.getAssociateByID("A1")[0],"cabbage"))##p0 registers with p1
 
