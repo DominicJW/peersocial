@@ -187,7 +187,7 @@ class Server:
 
     Requestor = Associate(ID = ReqID,thAUTH = ReqAUTH)
     try:
-      packit += str("TGTID:"+str(self.Database.getAssociateByID(TGTID)[0].ADDR))
+      packit += str(f":TGTID-{TGTID}-{str(self.Database.getAssociateByID(TGTID)[0].ADDR)}")
       conn.send(packit.encode("utf-8"))
     except IndexError:
       newDatabase = self.Database - relayHistory
@@ -199,7 +199,7 @@ class Server:
           newpack = f"{CMD}:{self.ID},{NextAss.myAUTH}:{TGTID}:{History}"
           client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
           client.connect(NextAss.ADDR)
-          client.send(packit.encode("utf-8"))
+          client.send(newpack.encode("utf-8"))
           queryresponse = client.recv(2040)
           restring = queryresponse.decode("utf-8")
           client.close()
@@ -211,6 +211,8 @@ class Server:
           conn.send(History.encode("utf-8"))
           break 
       conn.close()
+
+
 
 #why the method of finding ids is best:
 #gives more info for scores to be updated:
@@ -341,13 +343,22 @@ p0 = Peer("A0",(ip,5000))
 p1 = Peer("A1",(ip,5001))
 p2 = Peer("A2",(ip,5002))
 p3 = Peer("A3",(ip,5003))
+p4 = Peer("A4",(ip,5004))
+p5 = Peer("A5",(ip,5005))
 print(p1.info.ADDR)
 p0.Database.append(p1.info)
 p1.Database.append(p2.info)
 p2.Database.append(p3.info)
+p3.Database.append(p4.info)
+p4.Database.append(p5.info)
+
+
 '''all the databases are the same instance!!'''
 p0.start()
 p1.start()
 p2.start()
+p3.start()
+p4.start()
+p5.start()
 print(p0.client.REG(p0.Database.getAssociateByID("A1")[0],"cabbage"))##p0 registers with p1
-print(p0.client.FINDID("A3",p0.Database.getAssociateByID("A1")[0],History = None))##p0 sends to p1 a request to find adress of "A2"
+print(p0.client.FINDID("A5",p0.Database.getAssociateByID("A1")[0],History = None))##p0 sends to p1 a request to find adress of "A2"
