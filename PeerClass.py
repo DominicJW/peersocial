@@ -25,7 +25,7 @@ class Associate:
 
 class Database:
   def __sub__(self,other) :
-    retlist = lst[:]
+    retlist = self.lst[:]
     for Ass1 in self.lst:
       for Ass2 in other.lst:
         if Ass1.ADDR == Ass2.ADDR or Ass1.ID == Ass2.ID: ##and "or" or?
@@ -59,7 +59,7 @@ class Database:
   def append(self,Associate):
     self.lst.append(Associate)
 
-  def getHighestSCORE(self):
+  def getTopScore(self):
     return sorted(self.lst, key= lambda Ass: Ass.SCORE)
 
   def freeID(self,ID):
@@ -176,22 +176,30 @@ class Server:
   ##future validations: every server along the line is inforemd of the pakit recieved by everyother server.
     CMD,Req,TGTID,History = packit.split(":")
     ReqID,ReqAUTH = Req.split(",")##can do validation chaeck here
-    templst = History.split("/")
-    Requestor = Associate(ID = ReqID,thAUTH = AUTH)
+    ##history is equal to  IDone-ipone,portone/IDtwo-iptwo,porttwo/IDthree-ipthree,portthree
+    lst = []
+    for item in History.split("/"):
+      Id,addr = item.split("-")
+      ip,port = addr.split(",")
+      lst.append(Associate(ID = Id,ADDR = (ip,int(port))))
+
+    relayHistory = Database(lst = lst)
+
+    Requestor = Associate(ID = ReqID,thAUTH = ReqAUTH)
     try:
       packit += str("TGTID:"+str(self.Database.getAssociateByID(TGTID)[0].ADDR))
-      conn.send(packit)
-    except KeyError:
-      newDatabase = self.Database - relayHistroy
+      conn.send(packit.encode("utf-8"))
+    except IndexError:
+      newDatabase = self.Database - relayHistory
       while True:
-        newDatabase = newDatabase - relayHistroy
+        newDatabase = newDatabase - relayHistory
         try:
           NextAss = newDatabase.getTopScore()[0]
-          History += "/{NextAss.ID},{NextAss.ADDR}"
-          newpack = "{CMD}:{self.ID},{self.myAUTH}:{TGTID}:{History}"
+          History += f"/{NextAss.ID}-{str(NextAss.ADDR)[1:-1]}"
+          newpack = f"{CMD}:{self.ID},{NextAss.myAUTH}:{TGTID}:{History}"
           client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
           client.connect(NextAss.ADDR)
-          client.send(packit)
+          client.send(packit.encode("utf-8"))
           queryresponse = client.recv(2040)
           restring = queryresponse.decode("utf-8")
           client.close()
@@ -200,7 +208,7 @@ class Server:
             break
         except IndexError:##if database exhausted
           #or another error such as one genreate through subtraction of databases
-          conn.send(queryresponse)
+          conn.send(History.encode("utf-8"))
           break 
       conn.close()
 
@@ -227,7 +235,7 @@ class Client:
     NEXTID = Associate.ID
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(Associate.ADDR)
-    packit = f"FINDID:{self.ID},{self.myAUTH}:{TGTID}:{self.ID},{self.ADDR}/{Associate.ID},{Associate.ADDR}".encode("utf-8")#unsure of NEXTID, perhaps it should be past addresses instead, or even json format of associates!
+    packit = f"FINDID:{self.ID},{Associate.myAUTH}:{TGTID}:{self.ID}-{str(self.ADDR)[1:-1]}/{Associate.ID}-{str(Associate.ADDR)[1:-1]}".encode("utf-8")
     client.send(packit)
     res = client.recv(2040).decode("utf-8")
     return res
@@ -247,7 +255,7 @@ class Client:
     conf = client.recv(2040).decode("utf-8")##get serversID from this
     client.close()
     return (conf)
-
+##need to updaye myAUTH Associate attribuuet
   def CHANGEID(self,Associate,NEWID):##to individual server##could implement myID per Associate, for malicous nodes
     packit = f"CHANGEID:{self.ID}/{Associate.myAUTH}/{NEWID}".encode("utf-8")
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -326,21 +334,20 @@ class Peer:
     ## closer to mistake, bigger score penalty!
     pass
 
-
 PORT = 5051
 ip = socket.gethostbyname(socket.gethostname())
 
-p0 = Peer("A0",(ip,5050))
-p1 = Peer("A1",(ip,5051))
-p2 = Peer("A2",(ip,5052))
-p3 = Peer("A3",(ip,5053))
+p0 = Peer("A0",(ip,5000))
+p1 = Peer("A1",(ip,5001))
+p2 = Peer("A2",(ip,5002))
+p3 = Peer("A3",(ip,5003))
 print(p1.info.ADDR)
 p0.Database.append(p1.info)
 p1.Database.append(p2.info)
-p2.Database.append(p1.info)
+p2.Database.append(p3.info)
 '''all the databases are the same instance!!'''
 p0.start()
 p1.start()
 p2.start()
 print(p0.client.REG(p0.Database.getAssociateByID("A1")[0],"cabbage"))##p0 registers with p1
-
+print(p0.client.FINDID("A3",p0.Database.getAssociateByID("A1")[0],History = None))##p0 sends to p1 a request to find adress of "A2"
