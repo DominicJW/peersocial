@@ -1,6 +1,7 @@
 import socket
 import threading
 from copy import deepcopy
+import sys
 ##keeping database and assocaites as objects leads to greater flexibility
 #can write methods in to database which detct ID,name,ADDR collisions,retrive data,
 #these methods may be used by other classes: for instance both client and server will likey use getHighestSCORE
@@ -167,7 +168,8 @@ class Server:
               "CONFIRM":self.CONFIRM,
               "FINDID":self.FINDID,
               "GETDATA":self.GETDATA,
-              "CHANGEADDR":self.CHANGEADDR}
+              "CHANGEADDR":self.CHANGEADDR,
+              "MSG":self.MSG}
 
   def FINDID(self,packit,conn):
   ##every step of the line back the packit should be validated, 
@@ -188,6 +190,7 @@ class Server:
     Requestor = Associate(ID = ReqID,thAUTH = ReqAUTH)
     try:
       packit += str(f":TGTID-{TGTID}-{str(self.Database.getAssociateByID(TGTID)[0].ADDR)}")
+      ##new packit should always be made, otherwise authentication keys are sent unneccasirly and to the wrong nodes
       conn.send(packit.encode("utf-8"))
     except IndexError:
       newDatabase = self.Database - relayHistory
@@ -212,27 +215,67 @@ class Server:
           break 
       conn.close()
 
+  def MSG(self,packit,conn):
+    def send(conn):
+      try: 
+        while True:
+          inp = input("\n")
+          conn.send(inp.encode("utf-8"))
+          if inp == "stop": break
+        return conn.close()
+      except:
+        return conn.close()
 
+    def recieve(conn):
+      try:
+        while True:
+          inp = conn.recv(2040).decode("utf-8")
+          sys.stdout.write(f"\nthem: {inp}\n")
+          if inp == "stop": break
+        return conn.close()
+      except:
+        return conn.close()
 
-#why the method of finding ids is best:
-#gives more info for scores to be updated:
-#but why not retrive Assocaites databses, and search through them dircetly
-## there are pros and cons to both methods.
-##pro is less communication on network better network speed.
-##so the algorythm is done on the client side instead of distributed across the network
-##allowing the client to perform its own searching algorythm
-## con is that there is less incentive to have a high score, and that in the future, certain servers want to be 
-##quered by a smaller number of other servers, so going through proxies is a way for this to happen
-##both implemntations can exist side by side
+    recievethread = threading.Thread(target = recieve, args = [conn]) 
+    sendthread = threading.Thread(target = send, args = [conn]) 
+    recievethread.start()
+    sendthread.start()
+    recievethread.join()
+    sendthread.join()
 
 class Client:
-  ##IF A NODE does not respond directly, the client should query them 
-  ##if node doesnt respond, its accepted it was off,
-  ##if a node does respond, but says it wasnt queried, (the node directly connected to it)'s integraty is called into question
-  ##if a node responds and says it was queried but had no results, then  it was that nodes own fault and its score is reduced
-  ## any deviations are forwded to the nodes directly connected to those with the deviations
-  ##scores updated accordingly
-  ##everyone knows everything, shared knowledge is what runs the network.
+  def MSG(self,Associate):
+    def send(client):
+      try:
+        while True:
+          inp = input("\n")
+          client.send(inp.encode("utf-8"))
+          if inp == "stop": break
+        client.close()
+      except:
+        client.close()
+
+    def recieve(client):
+        try:
+          while True:
+            inp = client.recv(2040).decode("utf-8")
+            sys.stdout.write(f"\nthem: {inp}\n")
+            if inp == "stop": break
+          client.close()
+        except:
+          client.close()
+
+    packit = f"MSG:{self.ID},{Associate.myAUTH}".encode("utf_8")
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect(Associate.ADDR)
+    client.send(packit)
+    recievethread = threading.Thread(target = recieve, args = [client]) 
+    sendthread = threading.Thread(target = send, args = [client]) 
+    recievethread.start()
+    sendthread.start()
+    recievethread.join()
+    sendthread.join()
+
   def FINDID(self,TGTID,Associate,History = None):
     NEXTID = Associate.ID
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -265,7 +308,6 @@ class Client:
     client.send(packit)
     res = client.recv(2040).decode("utf-8")
     return res
-
   def GETDATA(self,Associate):
     ### response used to decide whether/how to update ID
     packit = f"GETDATA:{self.ID}/{Associate.myAUTH}".encode("utf-8")
@@ -273,14 +315,12 @@ class Client:
     client.connect(Associate.ADDR)
     client.send(packit)
     return client.recv(2040)
-
   def GETINFO(self,Associate):
     packit = f"GETINFO:{self.ID}/{Associate.myAUTH}".encode("utf-8")
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(Associate.ADDR)
     client.send(packit)
     return client.recv(2040)
-
   @property
   def commands(self):
     return    {"REG":REG,
@@ -299,16 +339,6 @@ class Peer:
     self.client.server = self.server
     self.server.client.peer = self##allows peer methods and attributes to be acceced from server and client sub instances
     self.client.server.peer = self#strange recursion?
-
-
-## so client can use server methods and server can use client methods
-##potentialfuture
-##Differnt ID and AUTH pair used for every single Association
-##so self.ID is used as defualt
-##nothing wrong with using only one id
-##but allows you to move in different circles.
-##also accepting a "myID,theirID" argument allows a server to treat clients differently depending upon how they found you
-
 
   def CHANGEID(self,ID):##needs more thought, much more thought
     if self.client.CHANGEID(ID):
@@ -336,6 +366,9 @@ class Peer:
     ## closer to mistake, bigger score penalty!
     pass
 
+
+
+'''
 PORT = 5051
 ip = socket.gethostbyname(socket.gethostname())
 
@@ -353,7 +386,7 @@ p3.Database.append(p4.info)
 p4.Database.append(p5.info)
 
 
-'''all the databases are the same instance!!'''
+#all the databases are the same instance!
 p0.start()
 p1.start()
 p2.start()
@@ -362,3 +395,5 @@ p4.start()
 p5.start()
 print(p0.client.REG(p0.Database.getAssociateByID("A1")[0],"cabbage"))##p0 registers with p1
 print(p0.client.FINDID("A5",p0.Database.getAssociateByID("A1")[0],History = None))##p0 sends to p1 a request to find adress of "A2"
+
+'''

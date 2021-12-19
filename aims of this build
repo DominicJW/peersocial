@@ -1,0 +1,30 @@
+I want to create a peer to peer social network which is a marage of ranking algoritms and domain name system.
+Another concept which may join the marrage is invite only for security and resilence. 
+
+--- shows the position i am at now
+Features:
+  direct messaging
+  group messaging -- 
+  scoring system
+  posts
+  profile
+  feed
+  comments and likes
+  the above with validation
+  
+I should be able to simulate the network on my computer, simulate malicous nodes etc.
+
+The aim is to prove that peer to peer social networking can work and has scope to be secure and resilent to rogue nodes.
+
+I have drawn inspiration from TOR and Bitcoin
+
+I will simualte the network on my computer, up to the maximum my hardware can handle, destructively testing the network with malicous nodes. Adjusting parameters to reach the highest resilince.
+Next I will seek proffesional help as to how to improve this relilience and simulate on a larger scale.
+
+After I have proved it can work I will get proffessional help to build the project making it both secure (safe from hackers taking over your computer) and user friendly, perhaps with encryption built in (though that could be a feature I build in after it has caught on). I will build it into a mobile app with NFC and QR codes which share [ID, Address], with a special scanner on the app to avoid QR collisions.
+
+Eventually I want the ID and AUTH pairs to be used as a digital currency of trust, of which it could be sold, though it may be used for malace towards the network
+
+I have thought that it could perhaps work on the back of blockchain, though the problem with that is that everybody can see everything so it may not apply.
+
+
