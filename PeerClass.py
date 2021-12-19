@@ -127,11 +127,13 @@ class Server:
     myserver = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     myserver.bind(self.ADDR)
     myserver.listen()
+    threads = []
     while True:
       conn,addr  = myserver.accept()
       packit = conn.recv(2040).decode("utf-8")
       CMD = packit[:packit.find(":")]
-      self.commands[CMD](packit,conn)
+      threads.append(threading.Thread(target = self.commands[CMD], args = (packit,conn)))
+      threads[-1].start()
 
   def VALSEND(self,Associate):
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
